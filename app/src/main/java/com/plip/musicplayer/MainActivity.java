@@ -33,6 +33,8 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
     private Intent playIntent;
     private boolean musicBound=false;
 
+    private boolean paused = false, playbackPaused = false;
+
     private MusicController controller;
 
     @Override
@@ -108,9 +110,54 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
         }
     }
 
+    @Override
+    protected void onPause(){
+        super.onPause();
+        paused = true;
+    }
+
+    @Override
+    protected void onResume(){
+        super.onResume();
+        if(paused){
+            setController();
+            paused = false;
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        controller.hide();
+        super.onStop();
+    }
+
+    private void playNext(){
+        musicSrv.playNext();
+        if(playbackPaused){
+            setController();
+            playbackPaused = false;
+        }
+        controller.show(0);
+    }
+
+    private void playPrev(){
+        musicSrv.playPrev();
+        if(playbackPaused){
+            setController();
+            playbackPaused = false;
+        }
+        controller.show(0);
+    }
+
+
     public void songPicked(View view) {
         musicSrv.setSong(Integer.parseInt(view.getTag().toString()));
         musicSrv.playSong();
+        if(playbackPaused){
+            setController();
+            playbackPaused = false;
+        }
+        controller.show(0);
     }
 
     @Override
@@ -127,6 +174,7 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
         // as you specify a parent activity in AndroidManifest.xml.
         switch (item.getItemId()) {
             case R.id.action_shuffle:
+                musicSrv.setShuffle();
                 break;
             case R.id.action_end:
                 stopService(playIntent);
@@ -153,6 +201,7 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
 
     @Override
     public void pause() {
+        playbackPaused = true;
         musicSrv.pausePlayer();
 
     }
