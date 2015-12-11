@@ -20,7 +20,10 @@ import java.util.Random;
 /**
  * Created by probro on 12/11/15.
  */
-public class MusicService extends Service implements MediaPlayer.OnPreparedListener, MediaPlayer.OnErrorListener, MediaPlayer.OnCompletionListener {
+public class MusicService extends Service
+        implements MediaPlayer.OnPreparedListener,
+        MediaPlayer.OnErrorListener,
+        MediaPlayer.OnCompletionListener {
 
     private String songTitle = "";
     private static final int NOTIFY_ID = 1;
@@ -32,34 +35,26 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
     private boolean shuffle = false;
     private Random rand;
 
-    private final IBinder musicBind = new MusicBinder();
-
     public void onCreate() {
         super.onCreate();
-        songPosn = 0;
-        player = new MediaPlayer();
 
+        songPosn = 0;
         initMusicPlayer();
 
         rand = new Random();
     }
 
     public void initMusicPlayer() {
+
+        player = new MediaPlayer();
         player.setWakeMode(getApplicationContext(), PowerManager.PARTIAL_WAKE_LOCK);
         player.setAudioStreamType(AudioManager.STREAM_MUSIC);
+        player.setOnPreparedListener(this);
+        player.setOnCompletionListener(this);
+        player.setOnErrorListener(this);
     }
 
-    @Override
-    public IBinder onBind(Intent intent) {
-        return musicBind;
-    }
-
-    @Override
-    public boolean onUnbind(Intent intent) {
-        player.stop();
-        player.release();
-        return false;
-    }
+    private final IBinder musicBind = new MusicBinder();
 
     @Override
     public void onCompletion(MediaPlayer mp) {
@@ -77,7 +72,7 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
 
     @Override
     public void onPrepared(MediaPlayer mp) {
-        player.start();
+        mp.start();
         Intent notIntent = new Intent(this, MainActivity.class);
         notIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent pendInt = PendingIntent.getActivity(this, 0, notIntent, PendingIntent.FLAG_UPDATE_CURRENT);
@@ -99,14 +94,26 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         songPosn = songIndex;
     }
 
-    public void setList(ArrayList<Song> theSongs) {
-        songs = theSongs;
-    }
-
     public class MusicBinder extends Binder {
         MusicService getService() {
             return MusicService.this;
         }
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return musicBind;
+    }
+
+    @Override
+    public boolean onUnbind(Intent intent) {
+        player.stop();
+        player.release();
+        return false;
+    }
+
+    public void setList(ArrayList<Song> theSongs) {
+        songs = theSongs;
     }
 
     public int getPosn() {

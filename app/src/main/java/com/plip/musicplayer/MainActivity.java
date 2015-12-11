@@ -14,6 +14,7 @@ import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.MediaController.MediaPlayerControl;
 
@@ -31,7 +32,8 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
 
     private MusicService musicSrv;
     private Intent playIntent;
-    private boolean musicBound=false;
+    private boolean musicBound = false;
+    private LinearLayout musicPlayBtn;
 
     private boolean paused = false, playbackPaused = false;
 
@@ -100,6 +102,16 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
         }
     }
 
+    public void songPicked(View view){
+        musicSrv.setSong(Integer.parseInt(view.getTag().toString()));
+        musicSrv.playSong();
+        if(playbackPaused){
+            setController();
+            playbackPaused=false;
+        }
+        controller.show(0);
+    }
+
     @Override
     protected void onStart() {
         super.onStart();
@@ -142,17 +154,6 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
 
     private void playPrev(){
         musicSrv.playPrev();
-        if(playbackPaused){
-            setController();
-            playbackPaused = false;
-        }
-        controller.show(0);
-    }
-
-
-    public void songPicked(View view) {
-        musicSrv.setSong(Integer.parseInt(view.getTag().toString()));
-        musicSrv.playSong();
         if(playbackPaused){
             setController();
             playbackPaused = false;
