@@ -1,9 +1,14 @@
 package com.plip.musicplayer;
 
+import android.content.ComponentName;
 import android.content.ContentResolver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
@@ -11,6 +16,8 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.ListView;
 import android.widget.MediaController.MediaPlayerControl;
+
+import com.plip.musicplayer.MusicService.MusicBinder;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -22,6 +29,10 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
     private ArrayList<Song> songList;
     private ListView songView;
 
+    private MusicService musicSrv;
+    private Intent playIntent;
+    private boolean musicBound=false;
+
     private MusicController controller;
 
     @Override
@@ -30,16 +41,6 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-
-
-//    FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-//    fab.setOnClickListener(new View.OnClickListener() {
-//        @Override
-//        public void onClick(View view) {
-//            Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-//                    .setAction("Action", null).show();
-//        }
-//    });
 
         songView = (ListView) findViewById(R.id.song_list);
         songList = new ArrayList<Song>();
@@ -59,6 +60,21 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
         setController();
 
     }
+
+    private ServiceConnection musicConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            MusicBinder binder = (MusicBinder) service;
+            musicSrv = binder.getService();
+            musicSrv.setList(songList);
+            musicBound = true;
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            musicBound = false;
+        }
+    };
 
     public void getSongList() {
         ContentResolver musicResolver = getContentResolver();
@@ -83,6 +99,21 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
     }
 
     @Override
+    protected void onStart() {
+        super.onStart();
+        if(playIntent==null){
+            playIntent = new Intent(this, MusicService.class);
+            bindService(playIntent, musicConnection, Context.BIND_AUTO_CREATE);
+            startService(playIntent);
+        }
+    }
+
+    public void songPicked(View view) {
+        musicSrv.setSong(Integer.parseInt(view.getTag().toString()));
+        musicSrv.playSong();
+    }
+
+    @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
@@ -94,46 +125,62 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
         // Handle action bar item clicks here. The action bar will
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_shuffle) {
-            return true;
-        }
-        if (id == R.id.action_end) {
-            return true;
+        switch (item.getItemId()) {
+            case R.id.action_shuffle:
+                break;
+            case R.id.action_end:
+                stopService(playIntent);
+                musicSrv=null;
+                System.exit(0);
+                break;
         }
 
         return super.onOptionsItemSelected(item);
     }
 
     @Override
+    protected void onDestroy() {
+        stopService(playIntent);
+        musicSrv=null;
+        super.onDestroy();
+    }
+
+    @Override
     public void start() {
+        musicSrv.go();
 
     }
 
     @Override
     public void pause() {
+        musicSrv.pausePlayer();
 
     }
 
     @Override
     public int getDuration() {
-        return 0;
+        if(musicSrv!=null && musicBound && musicSrv.isPng())
+            return musicSrv.getDur();
+        else return 0;
     }
 
     @Override
     public int getCurrentPosition() {
-        return 0;
+        if(musicSrv!=null && musicBound && musicSrv.isPng())
+        return musicSrv.getPosn();
+        else return 0;
     }
 
     @Override
     public void seekTo(int pos) {
+        musicSrv.seek(pos);
 
     }
 
     @Override
     public boolean isPlaying() {
+        if(musicSrv!=null && musicBound)
+            return musicSrv.isPng();
         return false;
     }
 
@@ -144,17 +191,17 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
 
     @Override
     public boolean canPause() {
-        return false;
+        return true;
     }
 
     @Override
     public boolean canSeekBackward() {
-        return false;
+        return true;
     }
 
     @Override
     public boolean canSeekForward() {
-        return false;
+        return true;
     }
 
     @Override
@@ -169,25 +216,18 @@ public class MainActivity extends AppCompatActivity implements MediaPlayerContro
         controller.setPrevNextListeners(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                playNext();
+                musicSrv.playNext();
+                controller.show(0);
             }
         }, new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                playPrev();
+                musicSrv.playPrev();
+                controller.show(0);
             }
         });
         controller.setMediaPlayer(this);
         controller.setAnchorView(findViewById(R.id.song_list));
         controller.setEnabled(true);
     }
-
-    private void playPrev() {
-
-    }
-
-    private void playNext() {
-
-    }
-    //dd
 }
